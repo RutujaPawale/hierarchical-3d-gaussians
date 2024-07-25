@@ -10,7 +10,7 @@
 #
 
 import os
-import torch
+import torch.nn as nn
 from utils.loss_utils import l1_loss, ssim
 from gaussian_renderer import render_post
 import sys
@@ -18,7 +18,7 @@ from scene import Scene, GaussianModel
 from utils.general_utils import safe_state
 import uuid
 from tqdm import tqdm
-from torch.utils.data import DataLoader
+from nn.utils.data import DataLoader
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
 import math
@@ -36,14 +36,14 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
     scene = Scene(dataset, gaussians, resolution_scales = [1], create_from_hier=True)
     gaussians.training_setup(opt, our_adam=False)
     if checkpoint:
-        (model_params, first_iter) = torch.load(checkpoint)
+        (model_params, first_iter) = nn.load(checkpoint)
         gaussians.restore(model_params, opt)
 
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
-    background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
+    background = nn.tensor(bg_color, dtype=nn.float32, device="cuda")
 
-    iter_start = torch.cuda.Event(enable_timing = True)
-    iter_end = torch.cuda.Event(enable_timing = True)
+    iter_start = nn.cuda.Event(enable_timing = True)
+    iter_end = nn.cuda.Event(enable_timing = True)
 
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
@@ -56,11 +56,11 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
     limit = 0.001
 
-    render_indices = torch.zeros(gaussians._xyz.size(0)).int().cuda()
-    parent_indices = torch.zeros(gaussians._xyz.size(0)).int().cuda()
-    nodes_for_render_indices = torch.zeros(gaussians._xyz.size(0)).int().cuda()
-    interpolation_weights = torch.zeros(gaussians._xyz.size(0)).float().cuda()
-    num_siblings = torch.zeros(gaussians._xyz.size(0)).int().cuda()
+    render_indices = nn.zeros(gaussians._xyz.size(0)).int().cuda()
+    parent_indices = nn.zeros(gaussians._xyz.size(0)).int().cuda()
+    nodes_for_render_indices = nn.zeros(gaussians._xyz.size(0)).int().cuda()
+    interpolation_weights = nn.zeros(gaussians._xyz.size(0)).float().cuda()
+    num_siblings = nn.zeros(gaussians._xyz.size(0)).int().cuda()
     to_render = 0
 
     limmax = 0.1
@@ -70,7 +70,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
         for viewpoint_batch in training_generator:
             for viewpoint_cam in viewpoint_batch:
 
-                sample = torch.rand(1).item()
+                sample = nn.rand(1).item()
                 limit = math.pow(2, sample * (math.log2(limmax) - math.log2(limmin)) + math.log2(limmin))
                 scale = 1
 
@@ -93,7 +93,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                     gaussians.boxes,
                     limit * scale,
                     viewpoint_cam.camera_center,
-                    torch.zeros((3)),
+                    nn.zeros((3)),
                     render_indices,
                     parent_indices,
                     nodes_for_render_indices)
@@ -107,7 +107,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                     gaussians.nodes,
                     gaussians.boxes,
                     viewpoint_cam.camera_center.cpu(),
-                    torch.zeros((3)),
+                    nn.zeros((3)),
                     interpolation_weights,
                     num_siblings
                 )
@@ -143,18 +143,18 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
                 iter_end.record()
 
-                with torch.no_grad():
+                with nn.no_grad():
                     # Progress bar
                     ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
                     if iteration % 10 == 0:
-                        progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}", "Size": f"{gaussians._xyz.size(0)}", "Peak memory": f"{torch.cuda.max_memory_allocated(device='cuda')}"})
+                        progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}", "Size": f"{gaussians._xyz.size(0)}", "Peak memory": f"{nn.cuda.max_memory_allocated(device='cuda')}"})
                         progress_bar.update(10)
 
                     # Log and save
                     if (iteration in saving_iterations):
                         print("\n[ITER {}] Saving Gaussians".format(iteration))
                         scene.save(iteration)
-                        print("peak memory: ", torch.cuda.max_memory_allocated(device='cuda'))
+                        print("peak memory: ", nn.cuda.max_memory_allocated(device='cuda'))
 
                     if iteration == opt.iterations:
                             
@@ -193,7 +193,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
 
                     if (iteration in checkpoint_iterations):
                         print("\n[ITER {}] Saving Checkpoint".format(iteration))
-                        torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+                        nn.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
 
                     iteration += 1
 
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     safe_state(args.quiet)
 
     # Start GUI server, configure and run training
-    torch.autograd.set_detect_anomaly(args.detect_anomaly)
+    nn.autograd.set_detect_anomaly(args.detect_anomaly)
     training(lp.extract(args), op.extract(args), pp.extract(args), args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from)
 
     print("\nTraining complete.")
