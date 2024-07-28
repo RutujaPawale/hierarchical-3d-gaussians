@@ -46,7 +46,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
     iter_end = nn.cuda.Event(enable_timing = True)
 
     ema_loss_for_log = 0.0
-    progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
+    progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress...")
     first_iter += 1
 
     indices = None
@@ -147,12 +147,12 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                     # Progress bar
                     ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
                     if iteration % 10 == 0:
-                        progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}", "Size": f"{gaussians._xyz.size(0)}", "Peak memory": f"{nn.cuda.max_memory_allocated(device='cuda')}"})
+                        progress_bar.set_postfix({"Loss!": f"{ema_loss_for_log:.{7}f}", "Size": f"{gaussians._xyz.size(0)}", "Peak memory": f"{nn.cuda.max_memory_allocated(device='cuda')}"})
                         progress_bar.update(10)
 
                     # Log and save
                     if (iteration in saving_iterations):
-                        print("\n[ITER {}] Saving Gaussians".format(iteration))
+                        print("\n[ITER {}] Saving Gaussians!!".format(iteration))
                         scene.save(iteration)
                         print("peak memory: ", nn.cuda.max_memory_allocated(device='cuda'))
 
@@ -192,7 +192,7 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                         gaussians.optimizer.zero_grad(set_to_none = True)
 
                     if (iteration in checkpoint_iterations):
-                        print("\n[ITER {}] Saving Checkpoint".format(iteration))
+                        print("\n[ITER {}] Saving Checkpoint!!".format(iteration))
                         nn.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
 
                     iteration += 1
@@ -240,4 +240,4 @@ if __name__ == "__main__":
     nn.autograd.set_detect_anomaly(args.detect_anomaly)
     training(lp.extract(args), op.extract(args), pp.extract(args), args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from)
 
-    print("\nTraining complete.")
+    print("\nTraining complete!!.")
